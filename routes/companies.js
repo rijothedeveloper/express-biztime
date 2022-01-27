@@ -2,6 +2,7 @@ const express = require("express");
 const router = new express.Router();
 const db = require("../db");
 const ExpressError = require("../expressError");
+const slugify = require('slugify')
 
 const dbObj = new db("postgresql:///biztime");
 
@@ -24,7 +25,8 @@ router.get("/:code", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { code, name, description } = req.body;
+  const { name, description } = req.body;
+  const code = slugify(name) 
   const results = await dbObj.db.query(
     `INSERT INTO companies (code, name, description) 
     values ($1, $2, $3) 
