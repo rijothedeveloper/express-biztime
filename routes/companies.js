@@ -1,5 +1,4 @@
 const express = require("express");
-const res = require("express/lib/response");
 const router = new express.Router();
 const db = require("../db");
 const ExpressError = require("../expressError");
