@@ -13,29 +13,55 @@ router.get("/", async (req, res) => {
   });
 });
 
-router.get("/:code", async (req, res) => {
-  const code = req.params.code;
-  const results = await dbObj.db.query(
-    `SELECT * FROM companies where code=$1`,
-    [code]
-  );
-  return res.json({
-    company: results.rows,
-  });
+router.get("/:code", async (req, res, next) => {
+  try {
+    const code = req.params.code;
+    const results = await dbObj.db.query(
+      ` SELECT c.code, c.name, c.description, i.industry  FROM companies AS c 
+      LEFT JOIN comp_industry AS ci 
+      ON c.code = ci.comp_code LEFT JOIN industry AS i  
+      on ci.industry_code = i.code  
+      WHERE c.code = $1`,
+      [code]
+    );
+    if (results.rowCount === 0) {
+      throw new ExpressError("company code is not valid", 404);
+    }
+    let {newcode, name, description} = results.rows[0]
+    let industries = results.rows.map(e => e.industry)
+    const company = {
+      code: newcode,
+      name: name,
+      description: description,
+      industries: industries
+    }
+    return res.json({
+      company: company
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.post("/", async (req, res) => {
-  const { name, description } = req.body;
-  const code = slugify(name) 
-  const results = await dbObj.db.query(
-    `INSERT INTO companies (code, name, description) 
+  try {
+    const { name, description } = req.body;
+    const code = slugify(name);
+    const results = await dbObj.db.query(
+      `INSERT INTO companies (code, name, description) 
     values ($1, $2, $3) 
     returning code, name, description`,
-    [code, name, description]
-  );
-  return res.status(201).json({
-    company: results.rows[0],
-  });
+      [code, name, description]
+    );
+    if (results.rowCount === 0) {
+      throw new ExpressError("company not added", 404);
+    }
+    return res.status(201).json({
+      company: results.rows[0],
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.put("/:code", async (req, res, next) => {
