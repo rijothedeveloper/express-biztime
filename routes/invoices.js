@@ -46,16 +46,39 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res, next) => {
   try {
     const id = req.params.id;
-    const { amt } = req.body;
-    const results = await dbObj.db.query(
-    `UPDATE invoices SET amt=$1 
-    where id = $2 
-    returning id, comp_code, amt, paid, add_date, paid_date`,
-    [amt, id]
+    const { amt, paid } = req.body;
+    const inv = await dbObj.db.query(
+      `SELECT * FROM invoices where id = $1`,
+      [id]
     );
-    if (results.rowCount === 0) {
+    if (inv.rowCount === 0) {
       throw new ExpressError("id is not valid", 404);
     }
+    const curr_invoice = inv.rows[0]
+    let results;
+    if (curr_invoice.paid === paid) {
+      results = await dbObj.db.query(
+        `UPDATE invoices SET amt=$1 
+        where id = $2 
+        returning id, comp_code, amt, paid, add_date, paid_date`,
+        [amt, id]
+        );
+    } else if (paid) {
+      results = await dbObj.db.query(
+        `UPDATE invoices SET amt=$1, paid=$2, paid_date=CURRENT_DATE
+        where id = $3
+        returning id, comp_code, amt, paid, add_date, paid_date`,
+        [amt, paid, id]
+        );
+    } else {
+      results = await dbObj.db.query(
+        `UPDATE invoices SET amt=$1, paid=$2, paid_date=null
+        where id = $3
+        returning id, comp_code, amt, paid, add_date, paid_date`,
+        [amt, paid, id]
+      );
+    }
+    
     return res.status(201).json({
       invoice: results.rows[0],
     });
